@@ -1,6 +1,12 @@
 package com.example.smartparkingsystem
 
 import android.os.Bundle
+import androidx.compose.material.icons.filled.Payment
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.activity.ComponentActivity
@@ -24,6 +30,11 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.*
 import com.google.firebase.ktx.Firebase
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.*
@@ -61,34 +72,96 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSignUpClick: () -> Unit) {
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Login", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
-            value = email, onValueChange = { email = it },
-            label = { Text("Email") }, modifier = Modifier.fillMaxWidth()
+        // Custom image
+        Image(
+            painter = painterResource(id = R.drawable.parking_logo), // Make sure this matches your filename
+            contentDescription = "App Logo",
+            modifier = Modifier
+                .size(150.dp)
+                .padding(bottom = 16.dp),
+            contentScale = ContentScale.Fit
         )
-        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = "Welcome to Smart Parking",
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Text(
+            text = "Your Reliable Parking Solution",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // Email field
         OutlinedTextField(
-            value = password, onValueChange = { password = it },
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = LocalTextStyle.current.copy(color = Color.Black), // Force black text
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        // Password field
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = {
-            Firebase.auth.signInWithEmailAndPassword(email, password)
-                .addOnSuccessListener { onLoginSuccess() }
-                .addOnFailureListener {
-                    Toast.makeText(context, "Login Failed", Toast.LENGTH_SHORT).show()
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = LocalTextStyle.current.copy(color = Color.Black), // Force black text
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    // Trigger login when Enter is pressed
+                    Firebase.auth.signInWithEmailAndPassword(email, password)
+                        .addOnSuccessListener { onLoginSuccess() }
+                        .addOnFailureListener {
+                            Toast.makeText(context, "Login Failed", Toast.LENGTH_SHORT).show()
+                        }
                 }
-        }, modifier = Modifier.fillMaxWidth()) {
+            ),
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                Firebase.auth.signInWithEmailAndPassword(email, password)
+                    .addOnSuccessListener { onLoginSuccess() }
+                    .addOnFailureListener {
+                        Toast.makeText(context, "Login Failed", Toast.LENGTH_SHORT).show()
+                    }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Login")
         }
+
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = onSignUpClick) {
             Text("Don't have an account? Sign Up")
@@ -102,6 +175,7 @@ fun SignUpScreen(onSignUpDone: () -> Unit) {
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -109,25 +183,56 @@ fun SignUpScreen(onSignUpDone: () -> Unit) {
     ) {
         Text("Sign Up", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
+
         OutlinedTextField(
-            value = email, onValueChange = { email = it },
-            label = { Text("Email") }, modifier = Modifier.fillMaxWidth()
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = LocalTextStyle.current.copy(color = Color.Black),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
+
         Spacer(Modifier.height(8.dp))
+
         OutlinedTextField(
-            value = password, onValueChange = { password = it },
+            value = password,
+            onValueChange = { password = it },
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = {
-            Firebase.auth.createUserWithEmailAndPassword(email, password)
-                .addOnSuccessListener { onSignUpDone() }
-                .addOnFailureListener {
-                    Toast.makeText(context, "Sign Up Failed", Toast.LENGTH_SHORT).show()
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = LocalTextStyle.current.copy(color = Color.Black),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    Firebase.auth.createUserWithEmailAndPassword(email, password)
+                        .addOnSuccessListener { onSignUpDone() }
+                        .addOnFailureListener {
+                            Toast.makeText(context, "Sign Up Failed", Toast.LENGTH_SHORT).show()
+                        }
                 }
-        }, modifier = Modifier.fillMaxWidth()) {
+            ),
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
+        )
+
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = {
+                Firebase.auth.createUserWithEmailAndPassword(email, password)
+                    .addOnSuccessListener { onSignUpDone() }
+                    .addOnFailureListener {
+                        Toast.makeText(context, "Sign Up Failed", Toast.LENGTH_SHORT).show()
+                    }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Sign Up")
         }
     }
@@ -137,6 +242,7 @@ fun SignUpScreen(onSignUpDone: () -> Unit) {
 fun MainScreen(onLogout: () -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Home", "Scanner", "Logout")
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         bottomBar = {
@@ -145,10 +251,10 @@ fun MainScreen(onLogout: () -> Unit) {
                     NavigationBarItem(
                         selected = selectedTab == index,
                         onClick = {
-                            selectedTab = index
-                            if (index == 2) { // Logout tab
-                                Firebase.auth.signOut()
-                                onLogout()
+                            if (index == 2) {
+                                showLogoutDialog = true // Show confirmation dialog
+                            } else {
+                                selectedTab = index
                             }
                         },
                         icon = {
@@ -169,8 +275,32 @@ fun MainScreen(onLogout: () -> Unit) {
             when (selectedTab) {
                 0 -> ParkingSlotScreen()
                 1 -> QRScannerScreen()
-                // Logout is handled in onClick
             }
+        }
+
+        // Logout confirmation dialog
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = { Text("Confirm Logout") },
+                text = { Text("Are you sure you want to log out?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        Firebase.auth.signOut()
+                        showLogoutDialog = false
+                        onLogout()
+                    }) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showLogoutDialog = false
+                    }) {
+                        Text("No")
+                    }
+                }
+            )
         }
     }
 }
@@ -230,11 +360,14 @@ fun ParkingSlotScreen() {
     val bookingRef = FirebaseDatabase.getInstance().getReference("bookings")
     val gateControlRef = FirebaseDatabase.getInstance().getReference("gateControl")
     val scope = rememberCoroutineScope()
-
-    val slotStatuses = remember { mutableStateListOf(*Array(6) { "available" }) }
+    var showBookingDialog by remember { mutableStateOf(false) }
+    var selectedSlotIndex by remember { mutableStateOf(-1) }
+    val slotStatuses = remember { mutableStateListOf(*Array(5) { "available" }) }
     val bookings = remember { mutableStateMapOf<Int, Booking>() }
     val timeLeftMap = remember { mutableStateMapOf<Int, Int>() }
     val jobs = remember { mutableStateMapOf<Int, Job>() }
+    var showPaymentScreen by remember { mutableStateOf(false) }
+    var bookingInProgress by remember { mutableStateOf(false) }
 
     // Listen for IR updates
     DisposableEffect(Unit) {
@@ -316,59 +449,271 @@ fun ParkingSlotScreen() {
         bookingRef.addValueEventListener(listener)
         onDispose { bookingRef.removeEventListener(listener) }
     }
-
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("Parking Slots", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(16.dp))
-        // 3×2 grid
-        for (row in 0..1) {
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                for (col in 0..2) {
-                    val idx = row * 3 + col
-                    val status = slotStatuses[idx]
-                    val isBooked = bookings.containsKey(idx)
-                    val color = when {
-                        status == "occupied" -> Color.Red
-                        isBooked -> Color.Yellow
-                        else -> Color.Green
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .background(color)
-                            .clickable(enabled = status == "available" && !isBooked && currentUser != null) {
-                                currentUser?.let {
-                                    // Update both bookings and gateControl
-                                    FirebaseDatabase.getInstance().getReference().apply {
-                                        child("bookings/$idx").setValue(
-                                            mapOf("uid" to it.uid, "startTime" to System.currentTimeMillis())
-                                        )
-                                        child("gateControl/slotIndex").setValue(idx) // Add this line
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = when {
-                                    status == "occupied" -> "Occupied"
-                                    isBooked -> "Booked"
-                                    else -> "Available"
-                                },
-                                color = Color.White
-                            )
-                            timeLeftMap[idx]?.let { t ->
-                                Text(
-                                    text = "%02d:%02d".format(t / 60, t % 60),
-                                    color = if (t <= 60) Color.Red else Color.White
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (showPaymentScreen) {
+            PaymentScreen(
+                slotIndex = selectedSlotIndex,
+                onPaymentSuccess = {
+                    currentUser?.let { user ->
+                        bookingInProgress = true
+                        FirebaseDatabase.getInstance().getReference().apply {
+                            child("bookings/$selectedSlotIndex").setValue(
+                                mapOf(
+                                    "uid" to user.uid,
+                                    "startTime" to System.currentTimeMillis()
                                 )
-                            }
+                            )
+                            child("gateControl/slotIndex").setValue(selectedSlotIndex)
                         }
+                        showPaymentScreen = false
+                        bookingInProgress = false
+                    }
+                },
+                onCancel = {
+                    showPaymentScreen = false
+                    selectedSlotIndex = -1
+                }
+            )
+        } else {
+
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Text(
+                    "Parking Slots",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(Modifier.height(16.dp))
+
+                // First row: 2 slots
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    for (i in 0..1) {
+                        ParkingSlotButton(
+                            index = i,
+                            status = slotStatuses[i],
+                            isBooked = bookings.containsKey(i),
+                            timeLeft = timeLeftMap[i],
+                            enabled = slotStatuses[i] == "available" && !bookings.containsKey(i) && currentUser != null,
+                            onClick = {
+                                selectedSlotIndex = i
+                                showBookingDialog = true
+                            }
+                        )
                     }
                 }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Second row: 2 slots
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    for (i in 2..3) {
+                        ParkingSlotButton(
+                            index = i,
+                            status = slotStatuses[i],
+                            isBooked = bookings.containsKey(i),
+                            timeLeft = timeLeftMap[i],
+                            enabled = slotStatuses[i] == "available" && !bookings.containsKey(i) && currentUser != null,
+                            onClick = {
+                                selectedSlotIndex = i
+                                showBookingDialog = true
+                            }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Third row: Single centered slot
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    ParkingSlotButton(
+                        index = 4,
+                        status = slotStatuses[4],
+                        isBooked = bookings.containsKey(4),
+                        timeLeft = timeLeftMap[4],
+                        enabled = slotStatuses[4] == "available" && !bookings.containsKey(4) && currentUser != null,
+                        onClick = {
+                            selectedSlotIndex = 4
+                            showBookingDialog = true
+                        }
+                    )
+                }
             }
-            Spacer(Modifier.height(16.dp))
+        }
+    }
+        if (bookingInProgress) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+
+
+            if (showBookingDialog) {
+        AlertDialog(
+            onDismissRequest = { showBookingDialog = false },
+            title = { Text("Confirm Booking") },
+            text = { Text("Book parking slot ${selectedSlotIndex + 1} for 10 minutes?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBookingDialog = false
+                        showPaymentScreen = true // Changed this line
+                    }
+                ) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showBookingDialog = false }
+                ) { Text("Cancel") }
+            }
+        )
+    }
+}
+@Composable
+fun PaymentScreen(
+    slotIndex: Int,
+    onPaymentSuccess: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Payment,
+            contentDescription = "Payment",
+            modifier = Modifier.size(100.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            "Payment Required",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            "₹60 will be charged for parking slot ${slotIndex + 1}",
+            style = MaterialTheme.typography.bodyLarge
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = onPaymentSuccess,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF4CAF50)
+            )
+        ) {
+            Text("Pay Now", style = MaterialTheme.typography.titleMedium)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Cancel Booking")
+        }
+    }
+}
+@Composable
+fun ParkingSlotButton(
+    index: Int,
+    status: String,
+    isBooked: Boolean,
+    timeLeft: Int?,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = when {
+        status == "occupied" -> Color(0xFFE53935) to Color.White
+        isBooked -> Color(0xFFFFB300) to Color.Black
+        else -> Color(0xFF43A047) to Color.White
+    }
+
+    Card(
+        modifier = Modifier
+            .size(140.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.first),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Slot number
+                Text(
+                    text = "${index + 1}",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = colors.second,
+                    fontWeight = FontWeight.Bold
+                )
+
+                // Status icon
+                Icon(
+                    imageVector = when {
+                        status == "occupied" -> Icons.Filled.DirectionsCar
+                        isBooked -> Icons.Filled.LockClock
+                        else -> Icons.Filled.LocalParking
+                    },
+                    contentDescription = "Status",
+                    tint = colors.second,
+                    modifier = Modifier.size(32.dp)
+                )
+
+                // Status text or timer
+                if (isBooked && timeLeft != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Time Left",
+                            color = colors.second,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Text(
+                            text = "%02d:%02d".format(timeLeft / 60, timeLeft % 60),
+                            color = if (timeLeft <= 60) Color.Red else colors.second,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Text(
+                        text = when {
+                            status == "occupied" -> "Occupied"
+                            else -> "Available"
+                        },
+                        color = colors.second,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
         }
     }
 }
