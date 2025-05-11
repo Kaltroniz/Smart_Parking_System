@@ -1,65 +1,84 @@
-#include <Wire.h>
+#include <ESP8266WiFi.h>
+#include <FirebaseESP8266.h>
 
-#define NUM_SLOTS 5
-// LED pins for each slot mapped to D0, D3, D4, D5, D6
-const int ledPins[NUM_SLOTS] = {D0, D3, D4, D5, D6};
-const int buzzerPin = D7; // Buzzer pin
+// Wi-Fi
+#define WIFI_SSID     "IITRPR"
+#define WIFI_PASSWORD "V#6qF?pyM!bQ$%NX"
 
-int currentSlot = -1;
+// Firebase
+#define FIREBASE_HOST "smart-parking-system-114b2-default-rtdb.firebaseio.com"
+#define FIREBASE_AUTH "6jnv4B2Nu2uoaA1gxpA21fi9vYs5vBxdsf1wA3by"
+
+// Hardware
+const int ledPins[] = { D0, D3, D4, D5, D6 };
+const int buzzerPin = D7;
+const int NUM_SLOTS = 5;
+
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+// State
+bool lastOpenState = false;
+int  activeSlot    = -1;
+
+void connectWiFi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+}
 
 void setup() {
   Serial.begin(115200);
-
-  // Join I2C bus with address 0x08
-  Wire.begin(0x08); 
-  Wire.onReceive(receiveEvent); // Register I2C receive event
-
-  // Set LED pins and buzzer pin as OUTPUT
   for (int i = 0; i < NUM_SLOTS; i++) {
     pinMode(ledPins[i], OUTPUT);
-    digitalWrite(ledPins[i], LOW); // Initially turn off all LEDs
+    digitalWrite(ledPins[i], LOW);
   }
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
 
-  pinMode(buzzerPin, OUTPUT);  // Set buzzer pin as output
-  digitalWrite(buzzerPin, LOW); // Initially turn off buzzer
-
-  Serial.println("🔌 Slave ready.");
+  connectWiFi();
+  config.host = FIREBASE_HOST;
+  config.signer.tokens.legacy_token = FIREBASE_AUTH;
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
 }
 
 void loop() {
-  // You can extend this logic to automatically turn off LEDs after a timeout or when a car is detected.
-  // For now, the LED stays on for the slot as long as the car isn't detected.
+  if (WiFi.status() != WL_CONNECTED) connectWiFi();
+  if (!Firebase.ready()) { delay(200); return; }
 
-  // Example: If a timeout or parking status condition occurs, turn off the LED and buzzer
-  if (currentSlot != -1) {
-    delay(10000); // 10 seconds delay for demo purposes
-    digitalWrite(ledPins[currentSlot], LOW); // Turn off the LED after a delay
-    digitalWrite(buzzerPin, LOW);  // Turn off the buzzer after 10 seconds
-    Serial.print("🔴 Slot LED OFF for slot ");
-    Serial.println(currentSlot);
-    currentSlot = -1; // Reset current slot
-  }
-}
+  // 1) Sample /gateControl/open
+  if (Firebase.getBool(fbdo, "/gateControl/open")) {
+    bool currOpen = fbdo.boolData();
 
-// This function is triggered when the master sends data via I2C
-void receiveEvent(int howMany) {
-  if (howMany >= 1) {
-    int slot = Wire.read(); // Read the slot index sent by master
-    if (slot >= 0 && slot < NUM_SLOTS) {
-      // Turn off all LEDs
-      for (int i = 0; i < NUM_SLOTS; i++) {
-        digitalWrite(ledPins[i], LOW);
+    // rising edge => new booking
+    if (currOpen && !lastOpenState) {
+      if (Firebase.getInt(fbdo, "/gateControl/slotIndex")) {
+        int slot = fbdo.intData();
+        if (slot >= 0 && slot < NUM_SLOTS) {
+          activeSlot = slot;
+          // LED on + beep
+          digitalWrite(ledPins[slot], HIGH);
+          digitalWrite(buzzerPin, HIGH);
+          delay(200);
+          digitalWrite(buzzerPin, LOW);
+        }
       }
-      // Turn on LED for selected slot
-      digitalWrite(ledPins[slot], HIGH);
-      // Turn on the buzzer for 1 second
-      digitalWrite(buzzerPin, HIGH);
-      delay(1000); // Buzzer on for 1 second
-      digitalWrite(buzzerPin, LOW);
-      
-      currentSlot = slot; // Update current slot
-      Serial.print("💡 Slot LED ON for slot ");
-      Serial.println(slot);
+    }
+    lastOpenState = currOpen;
+  }
+
+  // 2) If we have an activeSlot, watch its occupancy
+  if (activeSlot >= 0) {
+    String path = "/parking_slots/" + String(activeSlot);
+    if (Firebase.getString(fbdo, path.c_str())) {
+      if (fbdo.stringData() == "occupied") {
+        // turn LED off once—and never blink again
+        digitalWrite(ledPins[activeSlot], LOW);
+        activeSlot = -1;
+      }
     }
   }
+
+  delay(200);
 }
