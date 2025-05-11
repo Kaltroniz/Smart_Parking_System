@@ -1,28 +1,29 @@
 #include <ESP8266WiFi.h>
 #include <FirebaseESP8266.h>
 #include <Servo.h>
-#include <Wire.h>
 
-// WiFi credentials
-#define WIFI_SSID "IITRPR"
+// Wi-Fi credentials
+#define WIFI_SSID     "IITRPR"
 #define WIFI_PASSWORD "V#6qF?pyM!bQ$%NX"
 
 // Firebase credentials
 #define FIREBASE_HOST "smart-parking-system-114b2-default-rtdb.firebaseio.com"
-#define FIREBASE_AUTH "6jnv4B2Nu2uoaA1gxpA21fi9fYs5vBxdsf1wA3by"
+#define FIREBASE_AUTH "6jnv4B2Nu2uoaA1gxpA21fi9vYs5vBxdsf1wA3by"
+
+// IR sensor pins (use only pins with pull-up support)
+const int irPins[5] = { D1, D2, D5, D6, D3 };
+
+// Gate servo
+const int servoPin = D7;
+Servo     gateServo;
 
 // Firebase objects
-FirebaseData fbdo;
-FirebaseAuth auth;
+FirebaseData   fbdo;
+FirebaseAuth   auth;
 FirebaseConfig config;
 
-// IR sensor pins (5 sensors)
-const int irPins[5] = {D0, D3, D4, D5, D6};
-
-// Gate control
-Servo gateServo;
-const int servoPin = D7;
-bool gateOpen = false;
+// Track last open-request state for rising-edge detection
+bool lastReqOpen = false;
 
 void connectToWiFi() {
   Serial.print("🔌 Connecting to WiFi");
@@ -31,113 +32,86 @@ void connectToWiFi() {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\n✅ WiFi connected!");
+  Serial.println(" ✅");
 }
 
 void setup() {
   Serial.begin(115200);
-  Wire.begin(); // I2C Master
+  while (!Serial) {}
 
-  // Set IR sensor pins
+  // Initialize IR inputs with pull-ups
   for (int i = 0; i < 5; i++) {
-    pinMode(irPins[i], INPUT);
+    pinMode(irPins[i], INPUT_PULLUP);
   }
 
-  // Set up gate servo
+  // Initialize servo
   gateServo.attach(servoPin);
-  gateServo.write(0); // Closed
+  gateServo.write(0);  // start closed
 
+  // Connect to Wi-Fi
   connectToWiFi();
 
-  // Configure Firebase
+  // Initialize Firebase
   config.host = FIREBASE_HOST;
   config.signer.tokens.legacy_token = FIREBASE_AUTH;
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 
-  // Test Firebase connection
-  if (Firebase.ready()) {
-    Serial.println("✅ Firebase connected.");
-  } else {
-    Serial.println("❌ Firebase not ready.");
-  }
+  Serial.println(Firebase.ready() ? "✅ Firebase connected" 
+                                 : "❌ Firebase init failed");
 }
 
 void loop() {
+  // Keep Wi-Fi alive
   if (WiFi.status() != WL_CONNECTED) {
     connectToWiFi();
   }
-
   if (!Firebase.ready()) {
-    Serial.println("⚠ Firebase not ready yet...");
-    delay(1000);
+    delay(200);
     return;
   }
 
-  // 1. IR SENSOR UPDATES
+  // 1) Read all sensors, print & push to Firebase
+  Serial.println("---- Slot Statuses ----");
   for (int i = 0; i < 5; i++) {
-    int state = digitalRead(irPins[i]); // 0 = object detected
-    String path = "/parking_slots/" + String(i);
-    String status = (state == 0) ? "occupied" : "available";
-
-    if (Firebase.setString(fbdo, path.c_str(), status)) {
-      Serial.print("✅ Slot ");
-      Serial.print(i);
-      Serial.print(": ");
-      Serial.println(status);
-    } else {
-      Serial.print("❌ Slot ");
-      Serial.print(i);
-      Serial.print(" update failed: ");
-      Serial.println(fbdo.errorReason());
-    }
+    bool occupied = (digitalRead(irPins[i]) == LOW);
+    const char* status = occupied ? "occupied" : "available";
+    Serial.printf("Slot %d: %s\n", i, status);
+    Firebase.setString(fbdo,
+      String("/parking_slots/") + i,
+      status
+    );
   }
+  Serial.println("-----------------------");
 
-  // 2. GATE CONTROL FROM FIREBASE
+  // 2) Handle gate-open requests on the rising edge
   if (Firebase.getBool(fbdo, "/gateControl/open")) {
-    bool gateControl = fbdo.boolData();
+    bool reqOpen = fbdo.boolData();
+    if (reqOpen && !lastReqOpen) {
+      // clear the flag immediately
+      Firebase.setBool(fbdo, "/gateControl/open", false);
 
-    if (gateControl && !gateOpen) {
-      Serial.println("🟢 gateControl = true -> Opening gate...");
-      gateServo.write(150); // Open
-      gateOpen = true;
-
-      // Send booked slot index to I2C slave
+      // fetch slotIndex
       if (Firebase.getInt(fbdo, "/gateControl/slotIndex")) {
-        int bookedSlot = fbdo.intData();
-        if (bookedSlot >= 0 && bookedSlot < 5) {
-          Serial.print("📨 Sending booked slot to slave: ");
-          Serial.println(bookedSlot);
-          Wire.beginTransmission(0x08);
-          Wire.write(bookedSlot); // Send slot index to slave
-          Wire.endTransmission();
-        } else {
-          Serial.println("❌ Invalid slot index received.");
+        int slot = fbdo.intData();
+        String path = "/parking_slots/" + String(slot);
+
+        // only open if still available
+        if (slot >= 0 && slot < 5
+            && Firebase.getString(fbdo, path.c_str())
+            && fbdo.stringData() == "available") {
+          Serial.printf("🟢 Opening gate for slot %d\n", slot);
+          gateServo.write(150);
+          delay(10000);
+          Serial.println("🔴 Closing gate");
+          gateServo.write(0);
         }
-      } else {
-        Serial.print("❌ Failed to get booked slot index: ");
-        Serial.println(fbdo.errorReason());
-      }
-
-      // Wait for 10 seconds before closing
-      delay(10000);
-      Serial.println("🔴 Closing gate...");
-      gateServo.write(0); // Close
-      gateOpen = false;
-
-      // Reset gate control
-      if (Firebase.setBool(fbdo, "/gateControl/open", false)) {
-        Serial.println("✅ gateControl set to false.");
-      } else {
-        Serial.print("❌ Failed to reset gateControl: ");
-        Serial.println(fbdo.errorReason());
       }
     }
+    lastReqOpen = reqOpen;
   } else {
-    Serial.print("❌ Failed to read /gateControl/open: ");
-    Serial.println(fbdo.errorReason());
+    lastReqOpen = false;
   }
 
-  Serial.println("--------------------------------");
-  delay(2000);
+  delay(500);
 }
