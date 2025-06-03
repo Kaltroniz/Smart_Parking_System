@@ -10,8 +10,7 @@
 #define FIREBASE_HOST "smart-parking-system-114b2-default-rtdb.firebaseio.com"
 #define FIREBASE_AUTH "6jnv4B2Nu2uoaA1gxpA21fi9vYs5vBxdsf1wA3by"
 
-// IR sensor pins (use only pins with pull-up support)
-const int irPins[5] = { D1, D2, D5, D6, D3 };
+const int irPins[5] = { D1, D2, D5, D6, D3 };// IR sensor pins (use only pins with pull-up support)
 
 // Gate servo
 const int servoPin = D7;
@@ -19,11 +18,10 @@ Servo     gateServo;
 
 // Firebase objects
 FirebaseData   fbdo;
-FirebaseAuth   auth;
+FirebaseAuth   auth;// for authentication in firebase
 FirebaseConfig config;
 
-// Track last open-request state for rising-edge detection
-bool lastReqOpen = false;
+bool lastReqOpen = false;// Track last open-request state for rising-edge detection
 
 void connectToWiFi() {
   Serial.print("🔌 Connecting to WiFi");
@@ -36,10 +34,11 @@ void connectToWiFi() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200);// for begin the data
   while (!Serial) {}
 
   // Initialize IR inputs with pull-ups
+  //here we use 5 IR sensors
   for (int i = 0; i < 5; i++) {
     pinMode(irPins[i], INPUT_PULLUP);
   }
@@ -48,8 +47,7 @@ void setup() {
   gateServo.attach(servoPin);
   gateServo.write(0);  // start closed
 
-  // Connect to Wi-Fi
-  connectToWiFi();
+  connectToWiFi();// for Connecting to the Wi-Fi
 
   // Initialize Firebase
   config.host = FIREBASE_HOST;
